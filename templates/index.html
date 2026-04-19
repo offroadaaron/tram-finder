@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Tram Finder</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="7" width="18" height="11" rx="2" fill="var(--accent)" opacity="0.9"/>
+          <rect x="6" y="4" width="12" height="4" rx="1.5" fill="var(--accent2)"/>
+          <circle cx="7.5" cy="20" r="1.5" fill="var(--accent2)"/>
+          <circle cx="16.5" cy="20" r="1.5" fill="var(--accent2)"/>
+          <rect x="6" y="10" width="5" height="4" rx="1" fill="var(--bg)" opacity="0.6"/>
+          <rect x="13" y="10" width="5" height="4" rx="1" fill="var(--bg)" opacity="0.6"/>
+        </svg>
+      </div>
+      <h1>Tram Finder</h1>
+    </header>
+
+    <div class="search-bar">
+      <input
+        id="location-input"
+        type="text"
+        inputmode="search"
+        placeholder="Search location or use GPS…"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      />
+      <div class="search-bar-buttons">
+        <button id="gps-btn" title="Use my location">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+          </svg>
+          <span>GPS</span>
+        </button>
+        <button id="search-btn">Search</button>
+      </div>
+    </div>
+
+    <div id="autocomplete-list" class="autocomplete-list hidden"></div>
+
+    <div class="mode-filters">
+      <button class="mode-filter active" data-modes="TRAM">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5 3h14c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2zm0 2v4h14V5H5zm0 6v4h5v-4H5zm7 0v4h7v-4h-7zM4 19l2 2h3l2-2H4zm9 0l2 2h3l2-2h-7z"/>
+        </svg>
+        Tram
+      </button>
+      <button class="mode-filter active" data-modes="SUBURBAN,RAIL,REGIONAL_RAIL,LONG_DISTANCE,NIGHT_RAIL">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-3.58-4-8-4zm0 2c3.51 0 5.5.48 5.93 1H6.07C6.5 4.48 8.49 4 12 4zm3.5 12h-7c-.83 0-1.5-.67-1.5-1.5v-3h10v3c0 .83-.67 1.5-1.5 1.5zM8.5 11a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm7 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+        </svg>
+        Train
+      </button>
+      <button class="mode-filter" data-modes="SUBWAY">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-3.58-4-8-4zm-3.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm7 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm-7 4.5c-.83 0-1.5-.67-1.5-1.5h9c0 .83-.67 1.5-1.5 1.5H8.5z"/>
+        </svg>
+        Subway
+      </button>
+      <button class="mode-filter" data-modes="BUS,COACH">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h8v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4S4 2.5 4 6v10zm3.5 1a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm9 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM6 6h12v5H6V6z"/>
+        </svg>
+        Bus
+      </button>
+      <button class="mode-filter" data-modes="FERRY">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 21H4l1.5-6h13L20 21zm-8-9V4h5l1 2H13v6l-1 .5V12zM4 13.5l1-4.5h2l-1 4.5H4zm14 0h-2l-1-4.5h2l1 4.5z"/>
+        </svg>
+        Ferry
+      </button>
+    </div>
+
+    <div id="status" class="status hidden"></div>
+
+    <div id="results" class="results hidden">
+      <div class="results-header">
+        <span id="results-title"></span>
+        <button id="refresh-btn" class="inline-refresh-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4a8 8 0 0 0-8 8 8 8 0 0 0 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18a6 6 0 0 1-6-6 6 6 0 0 1 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+      <div id="stops-container"></div>
+    </div>
+  </div>
+
+  <script>
+    const INITIAL_SHOW = 3;
+
+    let currentLat = null;
+    let currentLon = null;
+    let refreshInterval = null;
+    let autocompleteTimeout = null;
+
+    const locationInput = document.getElementById('location-input');
+    const gpsBtn = document.getElementById('gps-btn');
+    const searchBtn = document.getElementById('search-btn');
+    const refreshBtn = document.getElementById('refresh-btn');
+    const statusEl = document.getElementById('status');
+    const resultsEl = document.getElementById('results');
+    const resultsTitleEl = document.getElementById('results-title');
+    const stopsContainer = document.getElementById('stops-container');
+    const autocompleteList = document.getElementById('autocomplete-list');
+    const filterBtns = document.querySelectorAll('.mode-filter');
+
+    function getActiveModes() {
+      const modes = new Set();
+      filterBtns.forEach(btn => {
+        if (btn.classList.contains('active'))
+          btn.dataset.modes.split(',').forEach(m => modes.add(m.trim()));
+      });
+      return modes;
+    }
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('active');
+        if (currentLat && currentLon) rerenderStops();
+      });
+    });
+
+    function showStatus(msg, type = 'info') {
+      statusEl.textContent = msg;
+      statusEl.className = `status ${type}`;
+      statusEl.classList.remove('hidden');
+    }
+
+    function hideStatus() { statusEl.classList.add('hidden'); }
+
+    function parseTime(s) { return s ? new Date(s) : null; }
+
+    function formatTime(d) {
+      if (!d) return '—';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function minutesUntil(d) { return Math.round((d - Date.now()) / 60000); }
+
+    /* Inline SVG paths keyed by mode */
+    const MODE_PATHS = {
+      TRAM:          'M5 3h14c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2zm0 2v4h14V5H5zm0 6v4h5v-4H5zm7 0v4h7v-4h-7zM4 19l2 2h3l2-2H4zm9 0l2 2h3l2-2h-7z',
+      SUBURBAN:      'M12 2c-4 0-8 .5-8 4v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-3.58-4-8-4zm0 2c3.51 0 5.5.48 5.93 1H6.07C6.5 4.48 8.49 4 12 4zm3.5 12h-7c-.83 0-1.5-.67-1.5-1.5v-3h10v3c0 .83-.67 1.5-1.5 1.5zM8.5 11a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm7 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z',
+      SUBWAY:        'M12 2c-4 0-8 .5-8 4v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-3.58-4-8-4zm-3.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm7 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm-7 4.5c-.83 0-1.5-.67-1.5-1.5h9c0 .83-.67 1.5-1.5 1.5H8.5z',
+      BUS:           'M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h8v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4S4 2.5 4 6v10zm3.5 1a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm9 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM6 6h12v5H6V6z',
+      FERRY:         'M20 21H4l1.5-6h13L20 21zm-8-9V4h5l1 2H13v6l-1 .5V12zM4 13.5l1-4.5h2l-1 4.5H4zm14 0h-2l-1-4.5h2l1 4.5z',
+    };
+    MODE_PATHS.RAIL = MODE_PATHS.REGIONAL_RAIL = MODE_PATHS.LONG_DISTANCE = MODE_PATHS.NIGHT_RAIL = MODE_PATHS.SUBURBAN;
+    MODE_PATHS.COACH = MODE_PATHS.BUS;
+
+    function modeIconSvg(mode) {
+      const path = MODE_PATHS[mode] || MODE_PATHS.BUS;
+      return `<svg class="mode-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="${path}"/></svg>`;
+    }
+
+    function badgeColor(dep) {
+      if (dep.routeColor) return `#${dep.routeColor}`;
+      const line = dep.displayName || dep.routeShortName || '?';
+      const hash = [...line].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0);
+      return `hsl(${Math.abs(hash) % 360}, 60%, 36%)`;
+    }
+
+    function matchesFilter(dep) {
+      const active = getActiveModes();
+      return active.size === 0 || active.has(dep.mode);
+    }
+
+    const departureCache = new Map();
+
+    async function fetchDepartures(stopId) {
+      if (departureCache.has(stopId)) return departureCache.get(stopId);
+      const res = await fetch(`/api/departures?stopId=${encodeURIComponent(stopId)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      departureCache.set(stopId, data);
+      return data;
+    }
+
+    function rerenderStops() {
+      document.querySelectorAll('.stop-card[data-stop-id]').forEach(stopEl => {
+        const cached = departureCache.get(stopEl.dataset.stopId);
+        if (cached) applyDepsToCard(stopEl, cached.stopTimes || cached.departures || []);
+      });
+    }
+
+    function renderDeparture(dep) {
+      const place = dep.place || {};
+      const scheduled = parseTime(place.scheduledDeparture || place.scheduledArrival);
+      const realtime  = parseTime(place.departure || place.arrival);
+      const displayTime = realtime || scheduled;
+      const mins = displayTime ? minutesUntil(displayTime) : null;
+      const isDelayed = realtime && scheduled && Math.abs(realtime - scheduled) > 60000;
+      const cancelled = dep.cancelled || dep.tripCancelled || false;
+
+      const line = dep.displayName || dep.routeShortName || '?';
+      const mode = dep.mode || 'BUS';
+      const headsign = dep.headsign || '';
+      const track = place.track ? `<span class="track">Plat. ${place.track}</span>` : '';
+      const textColor = dep.routeTextColor ? `#${dep.routeTextColor}` : '#fff';
+
+      let countdown;
+      if (cancelled) {
+        countdown = '<span class="cancelled-badge">Cancelled</span>';
+      } else if (mins === null) {
+        countdown = '';
+      } else if (mins <= 0) {
+        countdown = '<span class="now">Now</span>';
+      } else {
+        countdown = `<span class="mins">${mins} min</span>`;
+      }
+
+      return `<div class="departure ${mins !== null && mins < 0 ? 'departed' : ''} ${cancelled ? 'cancelled' : ''}">
+        <div class="dep-left">
+          ${modeIconSvg(mode)}
+          <span class="line-badge" style="background:${badgeColor(dep)};color:${textColor}">${line}</span>
+          <svg class="dep-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+          <span class="headsign">${cancelled ? `<s>${headsign}</s>` : headsign}</span>
+        </div>
+        <div class="dep-right">
+          ${countdown}
+          <span class="dep-time ${isDelayed ? 'delayed' : ''}">${formatTime(displayTime)}</span>
+          ${isDelayed ? `<span class="scheduled-time">${formatTime(scheduled)}</span>` : ''}
+          ${track}
+        </div>
+      </div>`;
+    }
+
+    function applyDepsToCard(stopEl, deps) {
+      const listEl = stopEl.querySelector('.departures-list');
+      const loadingEl = stopEl.querySelector('.stop-loading');
+      const filtered = deps.filter(matchesFilter);
+      const active = getActiveModes();
+      const display = filtered.length > 0 ? filtered : (active.size === 0 ? deps : []);
+
+      if (!display.length) {
+        stopEl.classList.add('stop-card--empty');
+        loadingEl.textContent = 'No departures';
+        listEl.innerHTML = '';
+        return;
+      }
+
+      stopEl.classList.remove('stop-card--empty');
+      loadingEl.textContent = '';
+
+      const shown = display.slice(0, INITIAL_SHOW);
+      const hidden = display.slice(INITIAL_SHOW, INITIAL_SHOW + 10);
+
+      listEl.innerHTML = shown.map(renderDeparture).join('');
+
+      if (hidden.length > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'show-more-btn';
+        btn.textContent = `${hidden.length} more departure${hidden.length > 1 ? 's' : ''}`;
+        btn.addEventListener('click', () => {
+          btn.insertAdjacentHTML('beforebegin', hidden.map(renderDeparture).join(''));
+          btn.remove();
+        });
+        listEl.appendChild(btn);
+      }
+    }
+
+    /* ── Favourites ─────────────────────────────── */
+    const FAV_KEY = 'tramfinder_favs';
+    let favourites = JSON.parse(localStorage.getItem(FAV_KEY) || '{}');
+    // shape: { stopId: { name, lat, lon } }
+
+    function saveFavourites() {
+      localStorage.setItem(FAV_KEY, JSON.stringify(favourites));
+    }
+
+    function isFav(stopId) { return !!favourites[stopId]; }
+
+    function toggleFav(stopId, stopName, lat, lon) {
+      if (isFav(stopId)) {
+        delete favourites[stopId];
+      } else {
+        favourites[stopId] = { name: stopName, lat, lon };
+      }
+      saveFavourites();
+      // Update all star buttons for this stop
+      document.querySelectorAll(`.fav-btn[data-stop-id="${stopId}"]`).forEach(btn => {
+        btn.classList.toggle('fav-btn--active', isFav(stopId));
+        btn.title = isFav(stopId) ? 'Remove from favourites' : 'Add to favourites';
+      });
+      renderFavouritesSection();
+    }
+
+    function renderFavouritesSection() {
+      const favs = Object.entries(favourites);
+      let section = document.getElementById('fav-section');
+
+      if (!favs.length) {
+        if (section) section.remove();
+        return;
+      }
+
+      if (!section) {
+        section = document.createElement('div');
+        section.id = 'fav-section';
+        section.className = 'fav-section';
+        // Insert before the mode filters
+        document.querySelector('.mode-filters').insertAdjacentElement('beforebegin', section);
+      }
+
+      section.innerHTML = `
+        <div class="fav-header">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+          Favourites
+        </div>
+        <div class="fav-list">
+          ${favs.map(([id, f]) => `
+            <button class="fav-chip" data-stop-id="${id}" data-lat="${f.lat}" data-lon="${f.lon}" data-name="${f.name}">
+              ${f.name}
+            </button>`).join('')}
+        </div>`;
+
+      section.querySelectorAll('.fav-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          currentLat = parseFloat(chip.dataset.lat);
+          currentLon = parseFloat(chip.dataset.lon);
+          locationInput.value = chip.dataset.name;
+          loadStops(currentLat, currentLon, chip.dataset.name);
+        });
+      });
+    }
+
+    async function loadStops(lat, lon, label) {
+      departureCache.clear();
+      showStatus('Finding nearby stops…', 'info');
+      resultsEl.classList.add('hidden');
+
+      try {
+        const res = await fetch(`/api/stops?lat=${lat}&lon=${lon}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const allItems = Array.isArray(data) ? data : (data.features || data.results || []);
+        const stops = allItems.filter(s => s.type === 'STOP' || s.stopId).slice(0, 8);
+
+        if (!stops.length) { showStatus('No stops found.', 'warn'); return; }
+
+        hideStatus();
+        resultsTitleEl.textContent = label;
+        stopsContainer.innerHTML = '';
+        resultsEl.classList.remove('hidden');
+
+        const PIN_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z';
+
+        const STAR_PATH = 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z';
+
+        for (const stop of stops) {
+          const stopId   = stop.id || stop.stopId;
+          const stopName = stop.name || 'Unknown stop';
+          const stopLat  = stop.lat ?? lat;
+          const stopLon  = stop.lon ?? lon;
+
+          const stopEl = document.createElement('div');
+          stopEl.className = 'stop-card';
+          stopEl.dataset.stopId = stopId;
+          stopEl.innerHTML = `
+            <div class="stop-header">
+              <span class="stop-name">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="${PIN_PATH}"/></svg>
+                <span class="stop-name-text">${stopName}</span>
+              </span>
+              <span class="stop-loading">…</span>
+              <button class="fav-btn ${isFav(stopId) ? 'fav-btn--active' : ''}"
+                      data-stop-id="${stopId}"
+                      data-stop-name="${stopName}"
+                      data-lat="${stopLat}"
+                      data-lon="${stopLon}"
+                      title="${isFav(stopId) ? 'Remove from favourites' : 'Add to favourites'}">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="${STAR_PATH}"/></svg>
+              </button>
+            </div>
+            <div class="departures-list"></div>`;
+          stopsContainer.appendChild(stopEl);
+
+          stopEl.querySelector('.fav-btn').addEventListener('click', e => {
+            const b = e.currentTarget;
+            toggleFav(b.dataset.stopId, b.dataset.stopName, parseFloat(b.dataset.lat), parseFloat(b.dataset.lon));
+          });
+
+          fetchDepartures(stopId)
+            .then(data => applyDepsToCard(stopEl, data.stopTimes || data.departures || []))
+            .catch(() => { stopEl.querySelector('.stop-loading').textContent = 'Error'; });
+        }
+
+        clearInterval(refreshInterval);
+        refreshInterval = setInterval(() => loadStops(lat, lon, label), 30000);
+
+      } catch (err) {
+        showStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    // Render favourites on load
+    renderFavouritesSection();
+
+    /* GPS */
+    gpsBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) { showStatus('Geolocation not supported.', 'error'); return; }
+      showStatus('Getting location…', 'info');
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          currentLat = pos.coords.latitude;
+          currentLon = pos.coords.longitude;
+          locationInput.value = `${currentLat.toFixed(4)}, ${currentLon.toFixed(4)}`;
+          loadStops(currentLat, currentLon, 'Current location');
+        },
+        err => showStatus('Location error: ' + err.message, 'error'),
+        { timeout: 10000 }
+      );
+    });
+
+    /* Search */
+    async function searchLocation(query) {
+      query = query.trim();
+      if (!query) return;
+      const coord = query.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+      if (coord) {
+        currentLat = parseFloat(coord[1]);
+        currentLon = parseFloat(coord[2]);
+        loadStops(currentLat, currentLon, query);
+        return;
+      }
+      showStatus('Searching…', 'info');
+      try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data.features || data.results || []);
+        if (!items.length) { showStatus('Location not found.', 'warn'); return; }
+        const f = items[0];
+        currentLat = f.lat ?? f.geometry?.coordinates?.[1];
+        currentLon = f.lon ?? f.geometry?.coordinates?.[0];
+        locationInput.value = f.name || query;
+        loadStops(currentLat, currentLon, f.name || query);
+      } catch (err) {
+        showStatus('Search failed: ' + err.message, 'error');
+      }
+    }
+
+    searchBtn.addEventListener('click', () => searchLocation(locationInput.value));
+    locationInput.addEventListener('keydown', e => { if (e.key === 'Enter') { autocompleteList.classList.add('hidden'); searchLocation(locationInput.value); } });
+
+    /* Autocomplete */
+    locationInput.addEventListener('input', () => {
+      clearTimeout(autocompleteTimeout);
+      const q = locationInput.value.trim();
+      if (q.length < 3) { autocompleteList.classList.add('hidden'); return; }
+      autocompleteTimeout = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          const items = (Array.isArray(data) ? data : (data.features || data.results || [])).slice(0, 5);
+          if (!items.length) { autocompleteList.classList.add('hidden'); return; }
+          autocompleteList.innerHTML = items.map(f => {
+            const name    = f.name || f.properties?.name || '';
+            const country = f.country || '';
+            const lat = f.lat ?? f.geometry?.coordinates?.[1] ?? '';
+            const lon = f.lon ?? f.geometry?.coordinates?.[0] ?? '';
+            return `<div class="ac-item" data-name="${name}" data-lat="${lat}" data-lon="${lon}">
+              ${name}<span class="ac-sub">${country}</span>
+            </div>`;
+          }).join('');
+          autocompleteList.classList.remove('hidden');
+        } catch { autocompleteList.classList.add('hidden'); }
+      }, 300);
+    });
+
+    autocompleteList.addEventListener('click', e => {
+      const item = e.target.closest('.ac-item');
+      if (!item) return;
+      locationInput.value = item.dataset.name;
+      currentLat = parseFloat(item.dataset.lat);
+      currentLon = parseFloat(item.dataset.lon);
+      autocompleteList.classList.add('hidden');
+      loadStops(currentLat, currentLon, item.dataset.name);
+    });
+
+    document.addEventListener('click', e => {
+      if (!autocompleteList.contains(e.target) && e.target !== locationInput)
+        autocompleteList.classList.add('hidden');
+    });
+
+    /* Inline refresh */
+    refreshBtn.addEventListener('click', () => {
+      if (currentLat && currentLon) loadStops(currentLat, currentLon, locationInput.value || 'Selected location');
+    });
+  </script>
+</body>
+</html>
