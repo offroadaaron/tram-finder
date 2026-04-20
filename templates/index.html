@@ -113,6 +113,50 @@
     const autocompleteList = document.getElementById('autocomplete-list');
     const filterBtns = document.querySelectorAll('.mode-filter');
 
+    function hasSelectedLocation() {
+      return Number.isFinite(currentLat) && Number.isFinite(currentLon);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    function parseFavourites() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(FAV_KEY) || '{}');
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url);
+      let data = null;
+
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const message = data?.error || `HTTP ${res.status}`;
+        throw new Error(message);
+      }
+
+      return data;
+    }
+
     function getActiveModes() {
       const modes = new Set();
       filterBtns.forEach(btn => {
@@ -125,7 +169,7 @@
     filterBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         btn.classList.toggle('active');
-        if (currentLat && currentLon) rerenderStops();
+        if (hasSelectedLocation()) rerenderStops();
       });
     });
 
@@ -178,9 +222,7 @@
 
     async function fetchDepartures(stopId) {
       if (departureCache.has(stopId)) return departureCache.get(stopId);
-      const res = await fetch(`/api/departures?stopId=${encodeURIComponent(stopId)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await fetchJson(`/api/departures?stopId=${encodeURIComponent(stopId)}`);
       departureCache.set(stopId, data);
       return data;
     }
@@ -204,7 +246,9 @@
       const line = dep.displayName || dep.routeShortName || '?';
       const mode = dep.mode || 'BUS';
       const headsign = dep.headsign || '';
-      const track = place.track ? `<span class="track">Plat. ${place.track}</span>` : '';
+      const safeLine = escapeHtml(line);
+      const safeHeadsign = escapeHtml(headsign);
+      const track = place.track ? `<span class="track">Plat. ${escapeHtml(place.track)}</span>` : '';
       const textColor = dep.routeTextColor ? `#${dep.routeTextColor}` : '#fff';
 
       let countdown;
@@ -221,9 +265,9 @@
       return `<div class="departure ${mins !== null && mins < 0 ? 'departed' : ''} ${cancelled ? 'cancelled' : ''}">
         <div class="dep-left">
           ${modeIconSvg(mode)}
-          <span class="line-badge" style="background:${badgeColor(dep)};color:${textColor}">${line}</span>
+          <span class="line-badge" style="background:${badgeColor(dep)};color:${textColor}">${safeLine}</span>
           <svg class="dep-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-          <span class="headsign">${cancelled ? `<s>${headsign}</s>` : headsign}</span>
+          <span class="headsign">${cancelled ? `<s>${safeHeadsign}</s>` : safeHeadsign}</span>
         </div>
         <div class="dep-right">
           ${countdown}
@@ -270,7 +314,7 @@
 
     /* ── Favourites ─────────────────────────────── */
     const FAV_KEY = 'tramfinder_favs';
-    let favourites = JSON.parse(localStorage.getItem(FAV_KEY) || '{}');
+    let favourites = parseFavourites();
     // shape: { stopId: { name, lat, lon } }
 
     function saveFavourites() {
@@ -287,9 +331,11 @@
       }
       saveFavourites();
       // Update all star buttons for this stop
-      document.querySelectorAll(`.fav-btn[data-stop-id="${stopId}"]`).forEach(btn => {
-        btn.classList.toggle('fav-btn--active', isFav(stopId));
-        btn.title = isFav(stopId) ? 'Remove from favourites' : 'Add to favourites';
+      document.querySelectorAll('.fav-btn[data-stop-id]').forEach(btn => {
+        if (btn.dataset.stopId === String(stopId)) {
+          btn.classList.toggle('fav-btn--active', isFav(stopId));
+          btn.title = isFav(stopId) ? 'Remove from favourites' : 'Add to favourites';
+        }
       });
       renderFavouritesSection();
     }
@@ -318,8 +364,8 @@
         </div>
         <div class="fav-list">
           ${favs.map(([id, f]) => `
-            <button class="fav-chip" data-stop-id="${id}" data-lat="${f.lat}" data-lon="${f.lon}" data-name="${f.name}">
-              ${f.name}
+            <button class="fav-chip" data-stop-id="${escapeAttr(id)}" data-lat="${escapeAttr(f.lat)}" data-lon="${escapeAttr(f.lon)}" data-name="${escapeAttr(f.name)}">
+              ${escapeHtml(f.name)}
             </button>`).join('')}
         </div>`;
 
@@ -339,9 +385,7 @@
       resultsEl.classList.add('hidden');
 
       try {
-        const res = await fetch(`/api/stops?lat=${lat}&lon=${lon}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await fetchJson(`/api/stops?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
 
         const allItems = Array.isArray(data) ? data : (data.features || data.results || []);
         const stops = allItems.filter(s => s.type === 'STOP' || s.stopId).slice(0, 8);
@@ -362,6 +406,9 @@
           const stopName = stop.name || 'Unknown stop';
           const stopLat  = stop.lat ?? lat;
           const stopLon  = stop.lon ?? lon;
+          const safeStopId = escapeAttr(stopId);
+          const safeStopName = escapeHtml(stopName);
+          const safeStopNameAttr = escapeAttr(stopName);
 
           const stopEl = document.createElement('div');
           stopEl.className = 'stop-card';
@@ -370,14 +417,14 @@
             <div class="stop-header">
               <span class="stop-name">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="${PIN_PATH}"/></svg>
-                <span class="stop-name-text">${stopName}</span>
+                <span class="stop-name-text">${safeStopName}</span>
               </span>
               <span class="stop-loading">…</span>
               <button class="fav-btn ${isFav(stopId) ? 'fav-btn--active' : ''}"
-                      data-stop-id="${stopId}"
-                      data-stop-name="${stopName}"
-                      data-lat="${stopLat}"
-                      data-lon="${stopLon}"
+                      data-stop-id="${safeStopId}"
+                      data-stop-name="${safeStopNameAttr}"
+                      data-lat="${escapeAttr(stopLat)}"
+                      data-lon="${escapeAttr(stopLon)}"
                       title="${isFav(stopId) ? 'Remove from favourites' : 'Add to favourites'}">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="${STAR_PATH}"/></svg>
               </button>
@@ -435,8 +482,7 @@
       }
       showStatus('Searching…', 'info');
       try {
-        const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
-        const data = await res.json();
+        const data = await fetchJson(`/api/geocode?q=${encodeURIComponent(query)}`);
         const items = Array.isArray(data) ? data : (data.features || data.results || []);
         if (!items.length) { showStatus('Location not found.', 'warn'); return; }
         const f = items[0];
@@ -459,8 +505,7 @@
       if (q.length < 3) { autocompleteList.classList.add('hidden'); return; }
       autocompleteTimeout = setTimeout(async () => {
         try {
-          const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
-          const data = await res.json();
+          const data = await fetchJson(`/api/geocode?q=${encodeURIComponent(q)}`);
           const items = (Array.isArray(data) ? data : (data.features || data.results || [])).slice(0, 5);
           if (!items.length) { autocompleteList.classList.add('hidden'); return; }
           autocompleteList.innerHTML = items.map(f => {
@@ -468,8 +513,8 @@
             const country = f.country || '';
             const lat = f.lat ?? f.geometry?.coordinates?.[1] ?? '';
             const lon = f.lon ?? f.geometry?.coordinates?.[0] ?? '';
-            return `<div class="ac-item" data-name="${name}" data-lat="${lat}" data-lon="${lon}">
-              ${name}<span class="ac-sub">${country}</span>
+            return `<div class="ac-item" data-name="${escapeAttr(name)}" data-lat="${escapeAttr(lat)}" data-lon="${escapeAttr(lon)}">
+              ${escapeHtml(name)}<span class="ac-sub">${escapeHtml(country)}</span>
             </div>`;
           }).join('');
           autocompleteList.classList.remove('hidden');
@@ -494,7 +539,7 @@
 
     /* Inline refresh */
     refreshBtn.addEventListener('click', () => {
-      if (currentLat && currentLon) loadStops(currentLat, currentLon, locationInput.value || 'Selected location');
+      if (hasSelectedLocation()) loadStops(currentLat, currentLon, locationInput.value || 'Selected location');
     });
   </script>
 </body>

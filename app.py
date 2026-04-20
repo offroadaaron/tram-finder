@@ -1,4 +1,5 @@
 import os
+
 import requests
 from flask import Flask, jsonify, render_template, request
 
@@ -9,6 +10,32 @@ HEADERS = {
     "User-Agent": "TramFinder/1.0 (offroadaaron@gmail.com)",
     "Accept": "application/json",
 }
+REQUEST_TIMEOUT = 10
+
+
+def proxy_get(path, params):
+    try:
+        response = requests.get(
+            f"{API_BASE}{path}",
+            params=params,
+            headers=HEADERS,
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.HTTPError as exc:
+        status_code = exc.response.status_code if exc.response is not None else 502
+        return (
+            jsonify(
+                {
+                    "error": "Transit provider request failed",
+                    "status": status_code,
+                }
+            ),
+            status_code,
+        )
+    except requests.RequestException:
+        return jsonify({"error": "Transit provider unavailable"}), 502
 
 
 @app.route("/")
@@ -21,14 +48,7 @@ def geocode():
     q = request.args.get("q", "")
     if not q:
         return jsonify({"error": "Missing query"}), 400
-    r = requests.get(
-        f"{API_BASE}/v1/geocode",
-        params={"text": q, "numResults": 5},
-        headers=HEADERS,
-        timeout=10,
-    )
-    r.raise_for_status()
-    return jsonify(r.json())
+    return proxy_get("/v1/geocode", {"text": q, "numResults": 5})
 
 
 @app.route("/api/stops")
@@ -37,14 +57,10 @@ def stops():
     lon = request.args.get("lon")
     if not lat or not lon:
         return jsonify({"error": "Missing lat/lon"}), 400
-    r = requests.get(
-        f"{API_BASE}/v1/reverse-geocode",
-        params={"place": f"{lat},{lon}", "type": "STOP", "numResults": 15},
-        headers=HEADERS,
-        timeout=10,
+    return proxy_get(
+        "/v1/reverse-geocode",
+        {"place": f"{lat},{lon}", "type": "STOP", "numResults": 15},
     )
-    r.raise_for_status()
-    return jsonify(r.json())
 
 
 @app.route("/api/departures")
@@ -52,14 +68,7 @@ def departures():
     stop_id = request.args.get("stopId")
     if not stop_id:
         return jsonify({"error": "Missing stopId"}), 400
-    r = requests.get(
-        f"{API_BASE}/v5/stoptimes",
-        params={"stopId": stop_id, "n": 20, "arriveBy": "false"},
-        headers=HEADERS,
-        timeout=10,
-    )
-    r.raise_for_status()
-    return jsonify(r.json())
+    return proxy_get("/v5/stoptimes", {"stopId": stop_id, "n": 20, "arriveBy": "false"})
 
 
 if __name__ == "__main__":
