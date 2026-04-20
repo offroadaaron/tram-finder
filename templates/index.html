@@ -228,7 +228,8 @@
     }
 
     function rerenderStops() {
-      document.querySelectorAll('.stop-card[data-stop-id]').forEach(stopEl => {
+      // Skip favourite-loaded cards — they show all modes regardless of filter
+      document.querySelectorAll('.stop-card[data-stop-id]:not([data-fav-view])').forEach(stopEl => {
         const cached = departureCache.get(stopEl.dataset.stopId);
         if (cached) applyDepsToCard(stopEl, cached.stopTimes || cached.departures || []);
       });
@@ -395,6 +396,7 @@
       const stopEl = document.createElement('div');
       stopEl.className = 'stop-card';
       stopEl.dataset.stopId = stopId;
+      stopEl.dataset.favView = 'true';
       const safeStopName = escapeHtml(stopName);
       const safeStopId = escapeAttr(stopId);
       const safeStopNameAttr = escapeAttr(stopName);
