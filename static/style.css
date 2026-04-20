@@ -315,6 +315,11 @@ button {
   border-style: dashed;
 }
 
+/* Star button always full opacity so users can favourite any stop */
+.stop-card--empty .fav-btn {
+  opacity: 1;
+}
+
 .stop-card--empty .stop-header {
   min-height: 38px;
   padding: 0.5rem 1rem;

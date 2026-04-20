@@ -374,9 +374,85 @@
           currentLat = parseFloat(chip.dataset.lat);
           currentLon = parseFloat(chip.dataset.lon);
           locationInput.value = chip.dataset.name;
-          loadStops(currentLat, currentLon, chip.dataset.name);
+          loadFavouriteStop(chip.dataset.stopId, chip.dataset.name, currentLat, currentLon);
         });
       });
+    }
+
+    async function loadFavouriteStop(stopId, stopName, lat, lon) {
+      departureCache.clear();
+      showStatus(`Loading ${stopName}…`, 'info');
+      resultsEl.classList.add('hidden');
+
+      const PIN_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z';
+      const STAR_PATH = 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z';
+
+      hideStatus();
+      resultsTitleEl.textContent = stopName;
+      stopsContainer.innerHTML = '';
+      resultsEl.classList.remove('hidden');
+
+      const stopEl = document.createElement('div');
+      stopEl.className = 'stop-card';
+      stopEl.dataset.stopId = stopId;
+      const safeStopName = escapeHtml(stopName);
+      const safeStopId = escapeAttr(stopId);
+      const safeStopNameAttr = escapeAttr(stopName);
+      stopEl.innerHTML = `
+        <div class="stop-header">
+          <span class="stop-name">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="${PIN_PATH}"/></svg>
+            <span class="stop-name-text">${safeStopName}</span>
+          </span>
+          <span class="stop-loading">…</span>
+          <button class="fav-btn fav-btn--active"
+                  data-stop-id="${safeStopId}"
+                  data-stop-name="${safeStopNameAttr}"
+                  data-lat="${escapeAttr(lat)}"
+                  data-lon="${escapeAttr(lon)}"
+                  title="Remove from favourites">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="${STAR_PATH}"/></svg>
+          </button>
+        </div>
+        <div class="departures-list"></div>`;
+      stopsContainer.appendChild(stopEl);
+
+      stopEl.querySelector('.fav-btn').addEventListener('click', e => {
+        const b = e.currentTarget;
+        toggleFav(b.dataset.stopId, b.dataset.stopName, parseFloat(b.dataset.lat), parseFloat(b.dataset.lon));
+      });
+
+      try {
+        // Fetch all departures for this stop, ignoring mode filter
+        const data = await fetchJson(`/api/departures?stopId=${encodeURIComponent(stopId)}`);
+        const deps = data.stopTimes || data.departures || [];
+        const listEl = stopEl.querySelector('.departures-list');
+        const loadingEl = stopEl.querySelector('.stop-loading');
+        if (!deps.length) {
+          loadingEl.textContent = 'No departures';
+        } else {
+          loadingEl.textContent = '';
+          const shown = deps.slice(0, INITIAL_SHOW);
+          const hidden = deps.slice(INITIAL_SHOW, INITIAL_SHOW + 10);
+          listEl.innerHTML = shown.map(renderDeparture).join('');
+          if (hidden.length) {
+            const btn = document.createElement('button');
+            btn.className = 'show-more-btn';
+            btn.textContent = `${hidden.length} more departure${hidden.length > 1 ? 's' : ''}`;
+            btn.addEventListener('click', () => {
+              btn.insertAdjacentHTML('beforebegin', hidden.map(renderDeparture).join(''));
+              btn.remove();
+            });
+            listEl.appendChild(btn);
+          }
+        }
+        departureCache.set(stopId, data);
+      } catch {
+        stopEl.querySelector('.stop-loading').textContent = 'Error';
+      }
+
+      clearInterval(refreshInterval);
+      refreshInterval = setInterval(() => loadFavouriteStop(stopId, stopName, lat, lon), 30000);
     }
 
     async function loadStops(lat, lon, label) {
