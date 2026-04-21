@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 API_BASE = "https://api.transitous.org/api"
 HEADERS = {
-    "User-Agent": "TramFinder/1.0 (offroadaaron@gmail.com)",
+    "User-Agent": "TransitFinder/1.0 (offroadaaron@gmail.com)",
     "Accept": "application/json",
 }
 REQUEST_TIMEOUT = 10
