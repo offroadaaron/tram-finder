@@ -662,3 +662,254 @@ button {
   h1 { font-size: 1.1rem; }
   .departure { min-height: 44px; padding: 0.5rem 1rem; }
 }
+
+/* ============================================
+   Trip Stop Sheet
+   ============================================ */
+
+.departure--tappable {
+  cursor: pointer;
+}
+
+.departure--tappable:active {
+  background: rgba(108,99,255,0.08);
+}
+
+/* Subtle tap hint icon */
+.departure--tappable .dep-left::after {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-right: 2px solid var(--text-muted);
+  border-top: 2px solid var(--text-muted);
+  transform: rotate(45deg);
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.4;
+}
+
+.trip-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.trip-sheet--open {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.trip-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+}
+
+.trip-sheet-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 80dvh;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.trip-sheet--open .trip-sheet-panel {
+  transform: translateY(0);
+}
+
+.trip-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 10px auto 4px;
+  flex-shrink: 0;
+}
+
+.trip-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 0.75rem;
+}
+
+.trip-sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.trip-sheet-title .line-badge {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.trip-sheet-title .dep-arrow {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.trip-sheet-title span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trip-sheet-close {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-height: unset;
+  padding: 0;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trip-sheet-close svg { width: 18px; height: 18px; }
+.trip-sheet-close:active { background: var(--border); }
+
+.trip-sheet-stops {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.75rem 0;
+  flex: 1;
+}
+
+.trip-loading {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 2rem 1rem;
+}
+
+/* Stop rows */
+.trip-stop {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  padding: 0 1rem;
+  min-height: 48px;
+}
+
+.trip-stop--past .trip-stop-name,
+.trip-stop--past .trip-stop-time {
+  opacity: 0.4;
+}
+
+.trip-stop-spine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.trip-stop-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  border: 2px solid var(--surface2);
+  flex-shrink: 0;
+  margin-top: 0.85rem;
+  z-index: 1;
+}
+
+.trip-stop--terminus .trip-stop-dot {
+  width: 13px;
+  height: 13px;
+  background: var(--text-muted);
+}
+
+.trip-stop--boarding .trip-stop-dot {
+  width: 13px;
+  height: 13px;
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(108,99,255,0.3);
+}
+
+.trip-stop-line {
+  width: 2px;
+  flex: 1;
+  min-height: 28px;
+  background: var(--border);
+  margin-top: 2px;
+}
+
+.trip-stop-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+  padding: 0.75rem 0 0.75rem 0.5rem;
+  border-bottom: 1px solid rgba(46,50,80,0.4);
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.trip-stop:last-child .trip-stop-info {
+  border-bottom: none;
+}
+
+.trip-stop-name {
+  font-size: 0.92rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.trip-stop--boarding .trip-stop-name {
+  font-weight: 700;
+  color: var(--accent2);
+}
+
+.trip-stop--terminus .trip-stop-name {
+  font-weight: 600;
+}
+
+.trip-stop-time {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.trip-stop--boarding .trip-stop-time {
+  color: var(--accent2);
+  font-weight: 600;
+}
+
+@media (min-width: 480px) {
+  .trip-sheet-panel {
+    max-width: 480px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%) translateY(100%);
+    border-radius: 20px 20px 0 0;
+  }
+  .trip-sheet--open .trip-sheet-panel {
+    transform: translateX(-50%) translateY(0);
+  }
+}

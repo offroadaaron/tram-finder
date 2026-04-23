@@ -63,6 +63,14 @@ def stops():
     )
 
 
+@app.route("/api/trip")
+def trip():
+    trip_id = request.args.get("tripId")
+    if not trip_id:
+        return jsonify({"error": "Missing tripId"}), 400
+    return proxy_get("/v1/trip", {"tripId": trip_id})
+
+
 @app.route("/api/departures")
 def departures():
     stop_id = request.args.get("stopId")

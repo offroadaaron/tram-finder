@@ -94,6 +94,25 @@
     </div>
   </div>
 
+  <!-- Trip stop sheet -->
+  <div id="trip-sheet" class="trip-sheet" aria-hidden="true">
+    <div class="trip-sheet-backdrop"></div>
+    <div class="trip-sheet-panel" role="dialog" aria-modal="true">
+      <div class="trip-sheet-handle"></div>
+      <div class="trip-sheet-header">
+        <div class="trip-sheet-title">
+          <span id="trip-sheet-badge" class="line-badge"></span>
+          <svg class="dep-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+          <span id="trip-sheet-dest"></span>
+        </div>
+        <button id="trip-sheet-close" class="trip-sheet-close" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div id="trip-sheet-stops" class="trip-sheet-stops"></div>
+    </div>
+  </div>
+
   <script>
     const INITIAL_SHOW = 3;
 
@@ -263,7 +282,15 @@
         countdown = `<span class="mins">${mins} min</span>`;
       }
 
-      return `<div class="departure ${mins !== null && mins < 0 ? 'departed' : ''} ${cancelled ? 'cancelled' : ''}">
+      const tripId = dep.tripId || '';
+
+      return `<div class="departure ${mins !== null && mins < 0 ? 'departed' : ''} ${cancelled ? 'cancelled' : ''} ${tripId ? 'departure--tappable' : ''}"
+                   data-trip-id="${escapeAttr(tripId)}"
+                   data-line="${escapeAttr(safeLine)}"
+                   data-dest="${escapeAttr(safeHeadsign)}"
+                   data-color="${escapeAttr(badgeColor(dep))}"
+                   data-text-color="${escapeAttr(textColor)}"
+                   data-from-stop="${escapeAttr(dep.place?.name || '')}">
         <div class="dep-left">
           ${modeIconSvg(mode)}
           <span class="line-badge" style="background:${badgeColor(dep)};color:${textColor}">${safeLine}</span>
@@ -619,6 +646,95 @@
     refreshBtn.addEventListener('click', () => {
       if (hasSelectedLocation()) loadStops(currentLat, currentLon, locationInput.value || 'Selected location');
     });
+    /* ── Trip stop sheet ─────────────────────────── */
+    const tripSheet     = document.getElementById('trip-sheet');
+    const tripSheetPanel = tripSheet.querySelector('.trip-sheet-panel');
+    const tripBadge     = document.getElementById('trip-sheet-badge');
+    const tripDest      = document.getElementById('trip-sheet-dest');
+    const tripStopsEl   = document.getElementById('trip-sheet-stops');
+    const tripClose     = document.getElementById('trip-sheet-close');
+
+    function openTripSheet() {
+      tripSheet.classList.add('trip-sheet--open');
+      tripSheet.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeTripSheet() {
+      tripSheet.classList.remove('trip-sheet--open');
+      tripSheet.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    tripClose.addEventListener('click', closeTripSheet);
+    tripSheet.querySelector('.trip-sheet-backdrop').addEventListener('click', closeTripSheet);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTripSheet(); });
+
+    // Delegate tap on any tappable departure row
+    document.addEventListener('click', async e => {
+      const row = e.target.closest('.departure--tappable');
+      if (!row) return;
+
+      const tripId    = row.dataset.tripId;
+      const line      = row.dataset.line;
+      const dest      = row.dataset.dest;
+      const color     = row.dataset.color;
+      const textColor = row.dataset.textColor;
+      const fromStop  = row.dataset.fromStop;
+
+      if (!tripId) return;
+
+      // Set header immediately
+      tripBadge.textContent = line;
+      tripBadge.style.background = color;
+      tripBadge.style.color = textColor;
+      tripDest.textContent = dest;
+      tripStopsEl.innerHTML = '<div class="trip-loading">Loading stops…</div>';
+      openTripSheet();
+
+      try {
+        const data = await fetchJson(`/api/trip?tripId=${encodeURIComponent(tripId)}`);
+        const leg  = (data.legs || [])[0];
+        if (!leg) throw new Error('No trip data');
+
+        // Build full ordered stop list: origin + intermediate + destination
+        const allStops = [leg.from, ...(leg.intermediateStops || []), leg.to];
+
+        // Find which stop is the boarding stop
+        const boardIdx = allStops.findIndex(s =>
+          s.name === fromStop ||
+          (s.stopId && s.stopId === allStops.find(x => x.name === fromStop)?.stopId)
+        );
+
+        tripStopsEl.innerHTML = allStops.map((stop, i) => {
+          const arr = parseTime(stop.arrival || stop.scheduledArrival);
+          const dep = parseTime(stop.departure || stop.scheduledDeparture);
+          const displayTime = dep || arr;
+          const isPast    = displayTime && displayTime < new Date();
+          const isBoarding = i === boardIdx;
+          const isTerminus = i === 0 || i === allStops.length - 1;
+
+          return `<div class="trip-stop ${isPast ? 'trip-stop--past' : ''} ${isBoarding ? 'trip-stop--boarding' : ''} ${isTerminus ? 'trip-stop--terminus' : ''}">
+            <div class="trip-stop-spine">
+              <div class="trip-stop-dot" style="${isBoarding ? `background:${color}` : ''}"></div>
+              ${i < allStops.length - 1 ? '<div class="trip-stop-line"></div>' : ''}
+            </div>
+            <div class="trip-stop-info">
+              <span class="trip-stop-name">${escapeHtml(stop.name || '')}</span>
+              <span class="trip-stop-time">${formatTime(displayTime)}</span>
+            </div>
+          </div>`;
+        }).join('');
+
+        // Scroll boarding stop into view
+        const boardingEl = tripStopsEl.querySelector('.trip-stop--boarding');
+        if (boardingEl) boardingEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+      } catch (err) {
+        tripStopsEl.innerHTML = `<div class="trip-loading">Could not load stops: ${escapeHtml(err.message)}</div>`;
+      }
+    });
+
   </script>
 </body>
 </html>
