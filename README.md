@@ -1,136 +1,118 @@
-# Tram Finder
+# Transit Finder
 
-Simple Flask web app for finding nearby public transport stops and live departures using the Transitous API.
+Real-time public transport departures powered by the [Transitous](https://transitous.org) / MOTIS API.
 
-The current UI is optimized for quick mobile use:
-- Search by place name
-- Use GPS to find nearby stops
-- Filter by transport mode
-- Save favourite stops in the browser
-- Auto-refresh departures every 30 seconds
+## Features
 
-## Requirements
+- Search by place name with autocomplete
+- GPS to find nearby stops
+- Filter by mode: Tram, Train, Subway, Bus, Ferry
+- Tap any departure to see all stops on that service
+- Save favourite stops (persisted in browser `localStorage`)
+- Auto-refreshes every 30 seconds
+- iPhone-optimised responsive UI with safe-area support
+- HTTPS via mounted TLS certificate
 
-- Python 3.12 or newer
-- Docker, if you want to run the container version
-- TLS certificate files if you want to run the provided HTTPS container setup
+---
 
-## Project Layout
+## Deploying on a New Machine
 
-- `app.py`: Flask backend and Transitous API proxy routes
-- `templates/index.html`: Main UI and frontend logic
-- `static/style.css`: Styling
-- `requirements.txt`: Python dependencies
-- `certs/`: Local TLS certificate mount point for the container
+### Requirements
 
-## Local Python Setup
+- Docker (recommended) **or** Python 3.12+
+- A TLS certificate for HTTPS (required for GPS/geolocation in browsers)
 
-1. Create a virtual environment:
+### 1 — Clone the repo
+
+```bash
+git clone https://github.com/offroadaaron/tram-finder.git
+cd tram-finder
+```
+
+### 2 — Add your TLS certificate
+
+Place your certificate files in a `certs/` directory (this folder is gitignored — never commit keys):
+
+```
+certs/
+  cert.pem       # your domain certificate
+  privkey.pem    # your private key
+```
+
+If you exported from Synology DSM, unzip the bundle into `certs/`.
+
+### 3 — Build and run with Docker
+
+```bash
+docker build -t transit-finder .
+
+docker run -d \
+  --name transit-finder \
+  --restart unless-stopped \
+  -p 5443:5443 \
+  -v "$(pwd)/certs:/certs:ro" \
+  transit-finder
+```
+
+Open `https://<your-host>:5443`
+
+### Updating to the latest version
+
+```bash
+git pull
+docker build -t transit-finder .
+docker rm -f transit-finder
+docker run -d \
+  --name transit-finder \
+  --restart unless-stopped \
+  -p 5443:5443 \
+  -v "$(pwd)/certs:/certs:ro" \
+  transit-finder
+```
+
+---
+
+## Running without Docker (development)
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-2. Install dependencies:
-
-```bash
 pip install -r requirements.txt
+python3 app.py          # listens on http://0.0.0.0:5000
 ```
 
-3. Run the app:
+> GPS will not work over plain HTTP except on `localhost`.
 
-```bash
-python3 app.py
-```
+---
 
-The Flask dev server listens on `http://0.0.0.0:5000` by default.
+## Project Layout
 
-You can change the port with:
-
-```bash
-PORT=8080 python3 app.py
-```
-
-## Docker Build
-
-Build the image:
-
-```bash
-docker build -t tram-finder .
-```
-
-## Docker Run
-
-The current container image is configured to serve HTTPS on port `5443` and expects certificate files mounted into `/certs`.
-
-Expected files:
-- `certs/cert.pem`
-- `certs/privkey.pem`
-
-Run it with:
-
-```bash
-docker run -d \
-  --name tram-finder \
-  -p 5443:5443 \
-  -v "$(pwd)/certs:/certs:ro" \
-  tram-finder
-```
-
-Then open:
-
-`https://<host>:5443/`
-
-If you are using a self-signed certificate, the browser will warn until you trust that certificate.
-
-## Certificates
-
-The repo ignores `certs/` on purpose. Do not commit private keys or certificate material into Git.
-
-If you need to create test certificates for local use, do that outside version control or keep them only in the ignored `certs/` directory.
+| Path | Purpose |
+|---|---|
+| `app.py` | Flask backend — proxies requests to Transitous API |
+| `templates/index.html` | Full frontend UI and JS |
+| `static/style.css` | Stylesheet |
+| `requirements.txt` | Python dependencies |
+| `Dockerfile` | Container definition |
+| `certs/` | TLS cert mount point — **gitignored, never commit** |
 
 ## API Endpoints
 
-Backend routes exposed by the app:
-- `GET /`
-- `GET /api/geocode?q=<query>`
-- `GET /api/stops?lat=<lat>&lon=<lon>`
-- `GET /api/departures?stopId=<stopId>`
+| Endpoint | Description |
+|---|---|
+| `GET /` | Serves the UI |
+| `GET /api/geocode?q=` | Address autocomplete / forward geocode |
+| `GET /api/stops?lat=&lon=` | Nearby transit stops |
+| `GET /api/departures?stopId=` | Live departures for a stop |
+| `GET /api/trip?tripId=` | All stops on a specific trip/service |
 
-The backend proxies requests to:
-- `https://api.transitous.org/api`
+All routes proxy to `https://api.transitous.org/api` with a proper `User-Agent` header as required by Transitous.
 
-## Notes On Behavior
+---
 
-- GPS uses the browser geolocation API, so it requires browser permission.
-- Nearby stops are fetched independently from departures.
-- By default the UI starts with `Tram` and `Train` filters enabled.
-- If a location only has nearby bus stops, the app can appear empty until `Bus` is enabled.
-- Favourites are stored in browser `localStorage`, not on the server.
-- Departure data auto-refreshes every 30 seconds after a stop search completes.
+## Notes
 
-## Error Handling
-
-- Transit provider request failures are returned as JSON errors from the backend instead of raw Flask 500 pages.
-- Frontend rendering escapes upstream and browser-stored values before inserting them into the DOM.
-
-## Updating The Running Container
-
-If you are already running the app in Docker, rebuild and restart it with:
-
-```bash
-docker build -t tram-finder .
-docker rm -f tram-finder
-docker run -d \
-  --name tram-finder \
-  -p 5443:5443 \
-  -v "$(pwd)/certs:/certs:ro" \
-  tram-finder
-```
-
-## Git Hygiene
-
-- Keep the remote URL free of embedded access tokens
-- Rotate any token that was previously exposed in local config or shell history
-- Keep certificate files out of Git
+- Favourites are stored in the browser (`localStorage`) — not on the server.
+- The default filter enables Tram and Train; enable Bus/Subway/Ferry as needed.
+- Tapping a favourite chip loads that exact stop directly, bypassing the nearby-stops search and showing all modes.
+- Tapping a departure row fetches and displays the full stop list for that service.
